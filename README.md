@@ -13,7 +13,7 @@ npx vsce package
 
 ## Install VSIX
 ```bash
-code --install-extension vector-calculator-0.1.0.vsix
+code --install-extension vector-calculator-0.1.1.vsix
 ```
 
 ## Usage
@@ -26,4 +26,4 @@ Those who know.
 - Default: `${userHome}/vector-calculator/model-data`
 
 ## License
-GPL-3.0-only. See [LICENSE](./LICENSE).
+GPL-3.0-only. See `LICENSE`.

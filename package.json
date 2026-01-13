@@ -12,6 +12,18 @@
     "Other"
   ],
   "main": "./out/extension.js",
+  "activationEvents": [
+    "onView:vectorCalculator.mixerView",
+    "onView:vectorCalculator.modelsView",
+    "onCommand:vectorCalculator.openMixer",
+    "onCommand:vectorCalculator.openModels",
+    "onCommand:vectorCalculator.reloadConfigs",
+    "onCommand:vectorCalculator.addStyleHexFromCursor",
+    "onCommand:vectorCalculator.setStyleHexMagnitudeFromCursor",
+    "onCommand:vectorCalculator.validateNofs",
+    "onCommand:vectorCalculator.openModelDataFolder",
+    "onCommand:vectorCalculator.openKeyboardShortcuts"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [

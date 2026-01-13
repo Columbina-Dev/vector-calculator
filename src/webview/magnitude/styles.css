@@ -1,0 +1,114 @@
+:root {
+  --muted: var(--vscode-descriptionForeground, #9aa6b2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--vscode-font-family, Segoe UI, sans-serif);
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+.wrap {
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.meta {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.meta strong {
+  color: var(--vscode-editor-foreground);
+}
+
+.row {
+  display: grid;
+  gap: 6px;
+}
+
+label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+input[type="range"],
+input[type="number"] {
+  width: 100%;
+}
+
+input[type="number"] {
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  color: var(--vscode-input-foreground);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.hex-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.hex-box {
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 6px;
+  padding: 8px;
+  font-family: var(--vscode-editor-font-family, Consolas, monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+button {
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-border);
+}
+
+.error {
+  color: var(--vscode-editorError-foreground);
+  font-size: 12px;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

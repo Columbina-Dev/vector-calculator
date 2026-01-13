@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{styleUri}}" />
+    <title>Set Magnitude</title>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="meta">
+        <div><strong>Name:</strong> <span id="vbName"></span></div>
+        <div><strong>Version:</strong> <span id="vbVersion"></span></div>
+        <div><strong>Vendor:</strong> <span id="vbVendor"></span></div>
+        <div><strong>Style:</strong> <span id="styleName"></span></div>
+      </div>
+
+      <div class="row">
+        <label>Target Magnitude</label>
+        <input id="magSlider" type="range" />
+        <input id="magInput" type="number" step="0.01" />
+        <div id="magError" class="error"></div>
+      </div>
+
+      <div class="hex-grid">
+        <div>
+          <label>Original Data</label>
+          <div id="origHex" class="hex-box"></div>
+        </div>
+        <div>
+          <label>Updated Preview</label>
+          <div id="nextHex" class="hex-box"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="cancelBtn" class="ghost">Cancel</button>
+        <button id="applyBtn">Apply</button>
+      </div>
+    </div>
+
+    <script nonce="{{nonce}}" type="module" src="{{scriptUri}}"></script>
+  </body>
+</html>
