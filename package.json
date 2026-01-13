@@ -1,0 +1,137 @@
+{
+  "name": "vector-calculator",
+  "displayName": "Vector Calculator",
+  "description": "Just a useless calculator",
+  "version": "0.1.0",
+  "publisher": "Aosumi-Rena",
+  "license": "GPL-3.0-only",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vectorCalculator",
+          "title": "Vector Calculator",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "vectorCalculator": [
+        {
+          "id": "vectorCalculator.mixerView",
+          "name": "Mixer",
+          "type": "webview",
+          "icon": "media/icon.svg"
+        },
+        {
+          "id": "vectorCalculator.modelsView",
+          "name": "Models",
+          "type": "webview",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "vectorCalculator.openMixer",
+        "title": "Vector: Open Mixer"
+      },
+      {
+        "command": "vectorCalculator.openModels",
+        "title": "Vector: Open Models"
+      },
+      {
+        "command": "vectorCalculator.reloadConfigs",
+        "title": "Vector: Reload Configs"
+      },
+      {
+        "command": "vectorCalculator.addStyleHexFromCursor",
+        "title": "Vector: Add Style Hex from Cursor"
+      },
+      {
+        "command": "vectorCalculator.setStyleHexMagnitudeFromCursor",
+        "title": "Vector: Set Style Hex Magnitude at Cursor"
+      },
+      {
+        "command": "vectorCalculator.validateNofs",
+        "title": "Vector: Validate .nofs.json"
+      },
+      {
+        "command": "vectorCalculator.openModelDataFolder",
+        "title": "Vector: Open Model Data Folder"
+      },
+      {
+        "command": "vectorCalculator.openKeyboardShortcuts",
+        "title": "Vector: Open Keyboard Shortcuts"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "vectorCalculator.addStyleHexFromCursor",
+        "key": "ctrl+alt+e",
+        "when": "editorTextFocus && !inputFocus && !findWidgetVisible && !searchViewletVisible"
+      },
+      {
+        "command": "vectorCalculator.setStyleHexMagnitudeFromCursor",
+        "key": "ctrl+alt+m",
+        "when": "editorTextFocus && !inputFocus && !findWidgetVisible && !searchViewletVisible"
+      }
+    ],
+    "configuration": {
+      "title": "Vector Calculator",
+      "properties": {
+        "vectorCalculator.modelDataPath": {
+          "type": "string",
+          "description": "Global folder to scan recursively for model JSON (.nofs.json) files.",
+          "default": "${userHome}/vector-calculator/model-data",
+          "scope": "application",
+          "format": "uri"
+        },
+        "vectorCalculator.shortcuts.addChannel": {
+          "type": "string",
+          "default": "Ctrl+Alt+E",
+          "description": "Shortcut reference for adding a channel. Change the actual keybinding in Keyboard Shortcuts."
+        },
+        "vectorCalculator.shortcuts.setMagnitude": {
+          "type": "string",
+          "default": "Ctrl+Alt+M",
+          "description": "Shortcut reference for setting magnitude. Change the actual keybinding in Keyboard Shortcuts."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p tsconfig.json && tsc -p tsconfig.webview.json",
+    "watch": "tsc -p tsconfig.json -w",
+    "test": "mocha -r ts-node/register test/**/*.test.ts"
+  },
+  "dependencies": {
+    "jsonc-parser": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.12.7",
+    "@types/vscode": "^1.90.0",
+    "mocha": "^10.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  },
+  "files": [
+    "out/**",
+    "out-webview/**",
+    "src/webview/**/*.html",
+    "src/webview/**/*.css",
+    "media/**",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ]
+}

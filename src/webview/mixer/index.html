@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{styleUri}}" />
+    <title>Vector Calculator Mixer</title>
+  </head>
+  <body data-media-base="{{mediaBase}}">
+    <div class="app">
+      <div class="tabs-row">
+        <div id="tabsBar" class="tabs-bar"></div>
+        <button id="addTab" class="icon-btn" title="Add mixer">
+          <img class="icon" src="{{mediaBase}}/icons/tab-add.svg" alt="Add" />
+        </button>
+      </div>
+
+      <div class="field-row">
+        <label for="tabNameInput">Tab name</label>
+        <input id="tabNameInput" type="text" placeholder="Mixer1" />
+      </div>
+
+      <div class="toolbar">
+        <button id="newChannel" class="tool-btn" title="New channel">
+          <img class="icon" src="{{mediaBase}}/icons/new-channel.svg" alt="New channel" />
+        </button>
+        <button id="randomChannel" class="tool-btn" title="New random">
+          <img class="icon" src="{{mediaBase}}/icons/random-channel.svg" alt="New random" />
+        </button>
+        <div class="separator"></div>
+        <button id="exportJson" class="tool-btn" title="Export to JSON" disabled>
+          <img class="icon" src="{{mediaBase}}/icons/export-json.svg" alt="Export to JSON" />
+        </button>
+        <button id="copyJson" class="tool-btn" title="Copy">
+          <img class="icon" src="{{mediaBase}}/icons/copy.svg" alt="Copy" />
+        </button>
+      </div>
+
+      <div class="field-row">
+        <label for="mixNameInput">Mix name</label>
+        <input id="mixNameInput" type="text" placeholder="Mixed" />
+      </div>
+
+      <section class="hex-panel">
+        <div class="hex-header">
+          <div>Output Hex</div>
+          <div class="hex-meta">Mag <span id="outputMag">0.000</span></div>
+        </div>
+        <div id="outputError" class="panel-error hidden"></div>
+        <pre id="outputHex" class="hex"></pre>
+      </section>
+
+      <section class="mixer-table">
+        <div class="channel-row bus">
+          <div class="channel-name fixed">bus</div>
+          <input id="busSlider" type="range" min="0" max="500" step="1" />
+          <div class="input-wrap">
+            <input id="busInput" type="text" inputmode="numeric" />
+            <span>%</span>
+          </div>
+        </div>
+        <div id="channelList" class="channel-list"></div>
+        <div id="channelEmpty" class="channel-empty">No channels yet.</div>
+      </section>
+    </div>
+
+    <script nonce="{{nonce}}" type="module" src="{{scriptUri}}"></script>
+  </body>
+</html>

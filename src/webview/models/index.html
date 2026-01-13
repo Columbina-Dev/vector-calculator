@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{styleUri}}" />
+    <title>Vector Calculator Models</title>
+  </head>
+  <body data-media-base="{{mediaBase}}">
+    <div class="app">
+      <div class="toolbar">
+        <div class="grouping">
+          <button class="icon-btn group-btn" data-mode="name" title="Sort by Name">
+            <img class="icon" src="{{mediaBase}}/icons/sort-name.svg" alt="Name" />
+          </button>
+          <button class="icon-btn group-btn" data-mode="vendor" title="Sort by Vendor">
+            <img class="icon" src="{{mediaBase}}/icons/sort-vendor.svg" alt="Vendor" />
+          </button>
+          <button class="icon-btn group-btn" data-mode="base_model" title="Sort by Base Model">
+            <img class="icon" src="{{mediaBase}}/icons/sort-base-model.svg" alt="Base" />
+          </button>
+        </div>
+        <div class="separator"></div>
+        <button id="reloadBtn" class="icon-btn" title="Reload">
+          <img class="icon" src="{{mediaBase}}/icons/reload.svg" alt="Reload" />
+        </button>
+        <div class="separator"></div>
+        <button id="openPathBtn" class="icon-btn" title="Open model-data folder">
+          <img class="icon" src="{{mediaBase}}/icons/open-folder.svg" alt="Open" />
+        </button>
+        <button id="saveActiveBtn" class="icon-btn" title="Save active .nofs.json">
+          <img class="icon" src="{{mediaBase}}/icons/save-additional.svg" alt="Save" />
+        </button>
+        <div class="separator"></div>
+        <button id="randomBtn" class="icon-btn" title="Generate random model">
+          <img class="icon" src="{{mediaBase}}/icons/generate-random.svg" alt="Random" />
+        </button>
+      </div>
+
+      <div class="search-row">
+        <input id="searchInput" type="search" placeholder="Search name, vendor, language, base model, style..." />
+      </div>
+
+      <div id="groupList" class="group-list"></div>
+      <div id="emptyState" class="empty-state">No models loaded.</div>
+    </div>
+
+    <script nonce="{{nonce}}" type="module" src="{{scriptUri}}"></script>
+  </body>
+</html>
