@@ -2,7 +2,7 @@
   "name": "vector-calculator",
   "displayName": "Vector Calculator",
   "description": "Just a useless calculator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "Aosumi-Rena",
   "license": "GPL-3.0-only",
   "engines": {
@@ -76,12 +76,12 @@
       {
         "command": "vectorCalculator.addStyleHexFromCursor",
         "key": "ctrl+alt+e",
-        "when": "editorTextFocus && !inputFocus && !findWidgetVisible && !searchViewletVisible"
+        "when": "editorTextFocus && !findWidgetVisible && !searchViewletVisible"
       },
       {
         "command": "vectorCalculator.setStyleHexMagnitudeFromCursor",
         "key": "ctrl+alt+m",
-        "when": "editorTextFocus && !inputFocus && !findWidgetVisible && !searchViewletVisible"
+        "when": "editorTextFocus && !findWidgetVisible && !searchViewletVisible"
       }
     ],
     "configuration": {
@@ -91,18 +91,7 @@
           "type": "string",
           "description": "Global folder to scan recursively for model JSON (.nofs.json) files.",
           "default": "${userHome}/vector-calculator/model-data",
-          "scope": "application",
-          "format": "uri"
-        },
-        "vectorCalculator.shortcuts.addChannel": {
-          "type": "string",
-          "default": "Ctrl+Alt+E",
-          "description": "Shortcut reference for adding a channel. Change the actual keybinding in Keyboard Shortcuts."
-        },
-        "vectorCalculator.shortcuts.setMagnitude": {
-          "type": "string",
-          "default": "Ctrl+Alt+M",
-          "description": "Shortcut reference for setting magnitude. Change the actual keybinding in Keyboard Shortcuts."
+          "scope": "application"
         }
       }
     }

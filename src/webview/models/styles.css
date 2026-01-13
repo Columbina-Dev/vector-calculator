@@ -26,8 +26,9 @@ body {
   gap: 4px;
   min-height: 100vh;
   width: 100%;
-  grid-template-rows: 5% 5% 87%;
-
+  height: 100vh;
+  grid-template-rows: auto auto 1fr;
+  overflow: hidden;
 }
 
 .toolbar {
@@ -99,6 +100,9 @@ body {
   display: grid;
   gap: 4px;
   padding: 0 6px 6px 6px;
+  height: 100%;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 details.group {
@@ -149,6 +153,9 @@ details.group > summary::-webkit-details-marker {
   font-size: 12px;
   padding: 4px 2px;
   margin: 0 6px;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 ::-webkit-scrollbar {
@@ -166,4 +173,9 @@ details.group > summary::-webkit-details-marker {
 }
 .search-row {
   padding: 0 6px;
+}
+
+.list-wrap {
+  position: relative;
+  min-height: 0;
 }

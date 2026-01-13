@@ -42,8 +42,10 @@
         <input id="searchInput" type="search" placeholder="Search name, vendor, language, base model, style..." />
       </div>
 
-      <div id="groupList" class="group-list"></div>
-      <div id="emptyState" class="empty-state">No models loaded.</div>
+      <div class="list-wrap">
+        <div id="groupList" class="group-list"></div>
+        <div id="emptyState" class="empty-state">No models loaded.</div>
+      </div>
     </div>
 
     <script nonce="{{nonce}}" type="module" src="{{scriptUri}}"></script>

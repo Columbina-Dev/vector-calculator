@@ -27,7 +27,6 @@ body {
   gap: 6px;
   min-height: 100vh;
   width: 100%;
-  grid-template-rows: 5% 5% 5% 5% 45% 5% 35%;
 }
 
 .tabs-row {
@@ -45,13 +44,6 @@ body {
   flex: 1;
 }
 
-.tab-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex: 0 0 auto;
-}
-
 .tab-btn {
   border: 1px solid var(--border);
   background: var(--panel-strong);
@@ -61,6 +53,9 @@ body {
   cursor: pointer;
   font-size: 12px;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .tab-btn.active {
@@ -112,6 +107,22 @@ body {
   width: 16px;
   height: 16px;
   object-fit: contain;
+}
+
+.tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+}
+
+.tab-close.disabled {
+  opacity: 0.3;
+}
+
+.tab-close-icon {
+  width: 12px;
+  height: 12px;
 }
 
 .field-row {
@@ -267,15 +278,6 @@ body {
   padding: 0;
 }
 
-.tab-close {
-  padding: 0;
-  opacity: 0.8;
-}
-
-.tab-close:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
 
 ::-webkit-scrollbar {
   width: 4px;

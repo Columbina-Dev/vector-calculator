@@ -708,7 +708,7 @@ async function showMagnitudeDialog(
     const csp = [
       "default-src 'none'",
       `style-src ${panel.webview.cspSource} 'unsafe-inline'`,
-      `script-src ${panel.webview.cspSource} 'nonce-${nonce}'`
+      `script-src ${panel.webview.cspSource} 'unsafe-inline' 'nonce-${nonce}'`
     ].join("; ");
     const data = escapeScriptJson(payload);
 
@@ -860,19 +860,32 @@ async function showMagnitudeDialog(
     const vbVersionEl = document.getElementById("vbVersion");
     const vbVendorEl = document.getElementById("vbVendor");
     const styleNameEl = document.getElementById("styleName");
+    window.addEventListener("error", (event) => {
+      if (errorEl) {
+        errorEl.textContent = event.message || "Script error.";
+      }
+    });
 
     vbNameEl.textContent = payload.meta.vbName || "Unknown";
     vbVersionEl.textContent = payload.meta.version || "Unknown";
     vbVendorEl.textContent = payload.meta.vendor || "Unknown";
     styleNameEl.textContent = payload.meta.styleName || "Unknown";
 
-    const baseVec = hexToVec32(payload.hex);
-    origHexEl.textContent = formatHex(payload.hex);
+    let baseVec = null;
+    try {
+      baseVec = hexToVec32(payload.hex);
+    } catch (error) {
+      errorEl.textContent = "Invalid hex data.";
+    }
+    origHexEl.textContent = formatHex(payload.hex || "");
 
     function updatePreview() {
       const target = parseSignedNumber(input.value.trim());
       if (target === null) {
         errorEl.textContent = "Enter a valid magnitude.";
+        return;
+      }
+      if (!baseVec) {
         return;
       }
       errorEl.textContent = "";

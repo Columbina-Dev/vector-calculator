@@ -149,34 +149,41 @@ function render(): void {
 function renderTabs(): void {
   tabsBar.innerHTML = "";
   state.tabs.forEach((tab, index) => {
-    const tabWrap = document.createElement("div");
-    tabWrap.className = "tab-item";
-
     const tabEl = document.createElement("button");
     tabEl.className = "tab-btn";
     if (tab.id === state.activeTabId) {
       tabEl.classList.add("active");
     }
-    tabEl.textContent = tab.name && tab.name.trim() ? tab.name.trim() : `Mixer${index + 1}`;
-    tabEl.addEventListener("click", () => {
+    const label = document.createElement("span");
+    label.className = "tab-label";
+    label.textContent = tab.name && tab.name.trim() ? tab.name.trim() : `Mixer${index + 1}`;
+
+    const close = document.createElement("span");
+    close.className = "tab-close";
+    close.title = "Close tab";
+    close.innerHTML = `<img class="icon tab-close-icon" src="${getIcon(
+      "remove"
+    )}" alt="Close" />`;
+    if (state.tabs.length <= 1) {
+      close.classList.add("disabled");
+    }
+
+    tabEl.append(label, close);
+    tabEl.addEventListener("click", (event) => {
+      if (event.target instanceof Node && close.contains(event.target)) {
+        if (state.tabs.length <= 1) {
+          return;
+        }
+        removeTab(tab.id);
+        return;
+      }
       if (tab.id === state.activeTabId) {
         return;
       }
       updateState({ ...state, activeTabId: tab.id });
     });
 
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "icon-btn tab-close";
-    closeBtn.title = "Close tab";
-    closeBtn.innerHTML = `<img class="icon" src="${getIcon("remove")}" alt="Close" />`;
-    closeBtn.disabled = state.tabs.length <= 1;
-    closeBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      removeTab(tab.id);
-    });
-
-    tabWrap.append(tabEl, closeBtn);
-    tabsBar.appendChild(tabWrap);
+    tabsBar.appendChild(tabEl);
   });
 }
 
