@@ -28,6 +28,7 @@ import {
   ExtensionToMixerMessage,
   ExtensionToModelsMessage,
   GroupingMode,
+  ChannelDraft,
   MixerChannel,
   MixerState,
   MixerTab,
@@ -39,7 +40,6 @@ import { renderWebviewHtml } from "./webviewHtml";
 
 const GROUPING_MODE_KEY = "vectorCalculator.models.groupingMode";
 const MODEL_DATA_SETTING = "modelDataPath";
-const CHANNELS_SCHEME = "vector-calculator-channels";
 const READONLY_SCHEME = "vector-calculator-view";
 
 const HEX_256_RE = /^[0-9a-fA-F]{256}$/;
@@ -49,11 +49,6 @@ interface StyleMeta {
   version?: string;
   vendor?: string;
   styleName?: string;
-}
-
-interface ChannelDraft {
-  name: string;
-  data: string;
 }
 
 interface ModelDataDirs {
@@ -71,11 +66,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const modelsProvider = new ModelsViewProvider(context);
   const mixerController = new MixerController(sessionStore, mixerProvider);
 
-  const channelProvider = new ChannelDocumentProvider(sessionStore);
   const readonlyProvider = new ReadonlyDocumentProvider();
 
-  const openChannelDocs = new Map<string, vscode.TextDocument>();
-  const channelEditTimers = new Map<string, NodeJS.Timeout>();
+  const channelPanels = new Map<string, vscode.WebviewPanel>();
   const nofsLanguageByUri = new Map<string, string>();
   const nofsAutofixTimers = new Map<string, NodeJS.Timeout>();
   const nofsAutofixInProgress = new Set<string>();
@@ -87,7 +80,6 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.registerWebviewViewProvider("vectorCalculator.modelsView", modelsProvider, {
       webviewOptions: { retainContextWhenHidden: true }
     }),
-    vscode.workspace.registerTextDocumentContentProvider(CHANNELS_SCHEME, channelProvider),
     vscode.workspace.registerTextDocumentContentProvider(READONLY_SCHEME, readonlyProvider)
   );
 
@@ -196,12 +188,17 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         await mixerController.addChannel(result.label, result.hex, result.source);
-        refreshOpenChannelDocs(openChannelDocs, channelProvider);
         await revealView("vectorCalculator.mixerView", mixerProvider);
         break;
       }
       case "mixer/open-channel-editor": {
-        await openChannelEditor(sessionStore.get(), message.tabId, channelProvider, openChannelDocs);
+        await openChannelEditor(
+          context,
+          sessionStore,
+          mixerController,
+          message.tabId,
+          channelPanels
+        );
         break;
       }
       case "mixer/export-style": {
@@ -268,36 +265,11 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument((doc) => {
       validateDocument(doc, nofsDiagnostics);
-      if (doc.uri.scheme === CHANNELS_SCHEME) {
-        const tabId = getTabIdFromUri(doc.uri);
-        if (tabId) {
-          openChannelDocs.set(tabId, doc);
-        }
-      }
       trackNofsLanguage(doc, nofsLanguageByUri);
       updateEditorStatus();
     }),
     vscode.workspace.onDidChangeTextDocument((event) => {
       validateDocument(event.document, nofsDiagnostics);
-      if (event.document.uri.scheme === CHANNELS_SCHEME) {
-        const tabId = getTabIdFromUri(event.document.uri);
-        if (tabId) {
-          const existing = channelEditTimers.get(tabId);
-          if (existing) {
-            clearTimeout(existing);
-          }
-          channelEditTimers.set(
-            tabId,
-            setTimeout(() => {
-              const draft = parseChannelDocument(event.document.getText());
-              if (!draft) {
-                return;
-              }
-              void mixerController.updateChannels(tabId, draft);
-            }, 250)
-          );
-        }
-      }
       schedulePhonesetAutofix(
         event.document,
         nofsLanguageByUri,
@@ -313,17 +285,6 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.workspace.onDidCloseTextDocument((doc) => {
       nofsDiagnostics.delete(doc.uri);
-      if (doc.uri.scheme === CHANNELS_SCHEME) {
-        const tabId = getTabIdFromUri(doc.uri);
-        if (tabId) {
-          openChannelDocs.delete(tabId);
-          const timer = channelEditTimers.get(tabId);
-          if (timer) {
-            clearTimeout(timer);
-            channelEditTimers.delete(tabId);
-          }
-        }
-      }
       clearNofsTracking(doc, nofsLanguageByUri, nofsAutofixTimers, nofsAutofixInProgress);
       updateEditorStatus();
     }),
@@ -334,12 +295,6 @@ export function activate(context: vscode.ExtensionContext): void {
 
   for (const doc of vscode.workspace.textDocuments) {
     validateDocument(doc, nofsDiagnostics);
-    if (doc.uri.scheme === CHANNELS_SCHEME) {
-      const tabId = getTabIdFromUri(doc.uri);
-      if (tabId) {
-        openChannelDocs.set(tabId, doc);
-      }
-    }
     trackNofsLanguage(doc, nofsLanguageByUri);
   }
 
@@ -515,30 +470,6 @@ class MixerController {
     };
     await this.sessionStore.set(nextState);
     this.mixerProvider.post({ type: "mixer/state", state: nextState });
-  }
-}
-
-class ChannelDocumentProvider implements vscode.TextDocumentContentProvider {
-  private readonly emitter = new vscode.EventEmitter<vscode.Uri>();
-  readonly onDidChange = this.emitter.event;
-
-  constructor(private readonly sessionStore: MixerSessionStore) {}
-
-  provideTextDocumentContent(uri: vscode.Uri): string {
-    const tabId = getTabIdFromUri(uri);
-    if (!tabId) {
-      return "[]";
-    }
-    const state = this.sessionStore.get();
-    const tab = state.tabs.find((item) => item.id === tabId);
-    if (!tab) {
-      return "[]";
-    }
-    return buildChannelDocument(tab.channels);
-  }
-
-  refresh(uri: vscode.Uri): void {
-    this.emitter.fire(uri);
   }
 }
 
@@ -1224,59 +1155,130 @@ function formatChannelLabel(meta: StyleMeta): string {
   return "Imported";
 }
 
-function buildChannelDocument(channels: MixerChannel[]): string {
-  const list = channels.map((channel) => ({
+function buildChannelDrafts(channels: MixerChannel[]): ChannelDraft[] {
+  return channels.map((channel) => ({
     name: channel.name,
     data: channel.hex.toUpperCase()
   }));
-  return JSON.stringify(list, null, 2);
 }
 
-function parseChannelDocument(text: string): ChannelDraft[] | null {
-  const errors: ParseError[] = [];
-  const data = parse(text, errors, { allowTrailingComma: true });
-  if (errors.length > 0 || !Array.isArray(data)) {
-    return null;
-  }
-  const draft: ChannelDraft[] = [];
-  for (const entry of data) {
+function normalizeChannelDrafts(drafts: ChannelDraft[]): ChannelDraft[] | null {
+  const normalized: ChannelDraft[] = [];
+  for (const entry of drafts) {
     if (!entry || typeof entry !== "object") {
       return null;
     }
-    const record = entry as Record<string, unknown>;
-    const name = typeof record.name === "string" ? record.name : "";
-    const value = record.data;
-    if (typeof value !== "string" || !HEX_256_RE.test(value)) {
+    const name = typeof entry.name === "string" ? entry.name : "";
+    const raw = typeof entry.data === "string" ? entry.data : "";
+    const cleaned = raw.replace(/\s+/g, "").toUpperCase();
+    if (!HEX_256_RE.test(cleaned)) {
       return null;
     }
-    draft.push({ name, data: value.toUpperCase() });
+    normalized.push({ name, data: cleaned });
   }
-  return draft;
+  return normalized;
 }
 
 async function openChannelEditor(
-  state: MixerState,
+  context: vscode.ExtensionContext,
+  sessionStore: MixerSessionStore,
+  mixerController: MixerController,
   tabId: string,
-  provider: ChannelDocumentProvider,
-  openDocs: Map<string, vscode.TextDocument>
+  panels: Map<string, vscode.WebviewPanel>
 ): Promise<void> {
-  const tabIndex = state.tabs.findIndex((tab) => tab.id === tabId);
-  if (tabIndex === -1) {
+  const buildInitPayload = (): { title: string; channels: ChannelDraft[] } | null => {
+    const state = sessionStore.get();
+    const tabIndex = state.tabs.findIndex((tab) => tab.id === tabId);
+    if (tabIndex === -1) {
+      return null;
+    }
+    const displayName = getTabDisplayName(state, tabId, tabIndex);
+    return {
+      title: `Edit data for ${displayName}-Channels`,
+      channels: buildChannelDrafts(state.tabs[tabIndex].channels)
+    };
+  };
+
+  const initial = buildInitPayload();
+  if (!initial) {
     vscode.window.showErrorMessage("Mixer tab not found.");
     return;
   }
-  const existing = openDocs.get(tabId);
+
+  const existing = panels.get(tabId);
   if (existing) {
-    await vscode.window.showTextDocument(existing, { preview: false });
+    existing.title = initial.title;
+    existing.reveal(undefined, true);
+    existing.webview.postMessage({
+      type: "channels/init",
+      tabId,
+      title: initial.title,
+      channels: initial.channels
+    });
     return;
   }
-  const displayName = getTabDisplayName(state, tabId, tabIndex);
-  const uri = toChannelUri(tabId, displayName);
-  const doc = await vscode.workspace.openTextDocument(uri);
-  await vscode.languages.setTextDocumentLanguage(doc, "json");
-  openDocs.set(tabId, doc);
-  await vscode.window.showTextDocument(doc, { preview: false });
-  provider.refresh(uri);
+
+  const panel = vscode.window.createWebviewPanel(
+    "vectorCalculator.channelEditor",
+    initial.title,
+    vscode.ViewColumn.Active,
+    {
+      enableScripts: true,
+      localResourceRoots: [
+        vscode.Uri.joinPath(context.extensionUri, "out-webview"),
+        vscode.Uri.joinPath(context.extensionUri, "src", "webview"),
+        vscode.Uri.joinPath(context.extensionUri, "media")
+      ]
+    }
+  );
+
+  panel.webview.html = renderWebviewHtml(panel.webview, context.extensionUri, {
+    htmlPath: ["src", "webview", "channels", "index.html"],
+    scriptPath: ["out-webview", "webview", "channels", "index.js"],
+    stylePath: ["src", "webview", "channels", "styles.css"]
+  });
+
+  panel.webview.onDidReceiveMessage(async (message: unknown) => {
+    const data = message as { type?: string; tabId?: string; channels?: ChannelDraft[] };
+    switch (data.type) {
+      case "channels/ready": {
+        const payload = buildInitPayload();
+        if (!payload) {
+          return;
+        }
+        panel.title = payload.title;
+        panel.webview.postMessage({
+          type: "channels/init",
+          tabId,
+          title: payload.title,
+          channels: payload.channels
+        });
+        break;
+      }
+      case "channels/save": {
+        if (data.tabId !== tabId || !Array.isArray(data.channels)) {
+          return;
+        }
+        const normalized = normalizeChannelDrafts(data.channels);
+        if (!normalized) {
+          vscode.window.showErrorMessage("Channel data must use 256-character hex strings.");
+          return;
+        }
+        await mixerController.updateChannels(tabId, normalized);
+        panel.webview.postMessage({ type: "channels/state", channels: normalized });
+        break;
+      }
+      case "channels/cancel":
+        panel.dispose();
+        break;
+    }
+  });
+
+  panel.onDidDispose(() => {
+    panels.delete(tabId);
+  });
+
+  panels.set(tabId, panel);
 }
 
 function getTabDisplayName(state: MixerState, tabId: string, index: number): string {
@@ -1288,35 +1290,8 @@ function getTabDisplayName(state: MixerState, tabId: string, index: number): str
   return tab.name.trim();
 }
 
-function toChannelUri(tabId: string, displayName: string): vscode.Uri {
-  const fileName = `${sanitizeFileName(displayName)}-Channels.json`;
-  return vscode.Uri.parse(
-    `${CHANNELS_SCHEME}:/${fileName}?tabId=${encodeURIComponent(tabId)}`
-  );
-}
-
 function toReadonlyUri(filePath: string): vscode.Uri {
   return vscode.Uri.parse(`${READONLY_SCHEME}:/${encodeURIComponent(filePath)}`);
-}
-
-function getTabIdFromUri(uri: vscode.Uri): string | undefined {
-  if (!uri.query) {
-    return undefined;
-  }
-  const params = new URLSearchParams(uri.query);
-  return params.get("tabId") ?? undefined;
-}
-
-function refreshOpenChannelDocs(
-  openDocs: Map<string, vscode.TextDocument>,
-  provider: ChannelDocumentProvider
-): void {
-  for (const doc of openDocs.values()) {
-    if (doc.isDirty) {
-      continue;
-    }
-    provider.refresh(doc.uri);
-  }
 }
 
 function isUnderRoot(filePath: string, root: string): boolean {

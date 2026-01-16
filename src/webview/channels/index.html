@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{styleUri}}" />
+    <title>Channel Editor</title>
+  </head>
+  <body data-media-base="{{mediaBase}}">
+    <div class="app">
+      <header class="header">
+        <h1 id="title">Edit data</h1>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="json">Edit JSON</button>
+          <button class="tab-btn" data-tab="hex">Edit HEX</button>
+          <button class="tab-btn" data-tab="numbers">Edit Numbers</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <section id="panel-json" class="panel active">
+          <textarea id="jsonEditor" spellcheck="false"></textarea>
+          <div id="jsonError" class="error"></div>
+        </section>
+
+        <section id="panel-hex" class="panel">
+          <div class="table-header">
+            <div>Name</div>
+            <div>Hex Data</div>
+          </div>
+          <div id="hexTable" class="table-body"></div>
+          <div class="table-footer">
+            <button id="hexAdd" class="icon-btn" title="Add channel">
+              <img class="icon" src="{{mediaBase}}/icons/tab-add.svg" alt="Add channel" />
+            </button>
+          </div>
+          <div id="hexError" class="error"></div>
+        </section>
+
+        <section id="panel-numbers" class="panel">
+          <div class="table-header">
+            <div>Name</div>
+            <div>Numbers</div>
+          </div>
+          <div id="numbersTable" class="table-body numbers"></div>
+          <div class="table-footer">
+            <button id="numbersAdd" class="icon-btn" title="Add channel">
+              <img class="icon" src="{{mediaBase}}/icons/tab-add.svg" alt="Add channel" />
+            </button>
+          </div>
+          <div id="numbersError" class="error"></div>
+        </section>
+      </main>
+
+      <footer class="actions">
+        <button id="cancelBtn" class="ghost">Cancel</button>
+        <button id="saveBtn">Save</button>
+      </footer>
+    </div>
+    <script type="module" nonce="{{nonce}}" src="{{scriptUri}}"></script>
+  </body>
+</html>

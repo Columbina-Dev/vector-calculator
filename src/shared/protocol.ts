@@ -53,6 +53,11 @@ export interface MixerState {
   tabs: MixerTab[];
 }
 
+export interface ChannelDraft {
+  name: string;
+  data: string;
+}
+
 export type GroupingMode = "name" | "vendor" | "base_model";
 
 export type ExtensionToMixerMessage =
@@ -68,6 +73,15 @@ export type MixerToExtensionMessage =
   | { type: "mixer/open-channel-editor"; tabId: string }
   | { type: "mixer/export-style"; name: string; hex: string }
   | { type: "mixer/copy-style"; name: string; hex: string };
+
+export type ExtensionToChannelsMessage =
+  | { type: "channels/init"; tabId: string; title: string; channels: ChannelDraft[] }
+  | { type: "channels/state"; channels: ChannelDraft[] };
+
+export type ChannelsToExtensionMessage =
+  | { type: "channels/ready" }
+  | { type: "channels/save"; tabId: string; channels: ChannelDraft[] }
+  | { type: "channels/cancel"; tabId: string };
 
 export type ExtensionToModelsMessage =
   | {

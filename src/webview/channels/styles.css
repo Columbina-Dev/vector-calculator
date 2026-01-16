@@ -1,0 +1,187 @@
+:root {
+  --muted: var(--vscode-descriptionForeground, #9aa6b2);
+  --border: var(--vscode-editorWidget-border, #2f2f2f);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--vscode-font-family, Segoe UI, sans-serif);
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.header {
+  display: grid;
+  gap: 8px;
+}
+
+#title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.tabs {
+  display: flex;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 6px 2px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.tab-btn.active {
+  color: var(--vscode-editor-foreground);
+  border-bottom: 2px solid var(--vscode-focusBorder);
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.panel {
+  display: none;
+  height: 100%;
+}
+
+.panel.active {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+textarea,
+input[type="text"] {
+  width: 100%;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  color: var(--vscode-input-foreground);
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 12px;
+  font-family: var(--vscode-editor-font-family, Consolas, monospace);
+}
+
+textarea {
+  flex: 1;
+  resize: vertical;
+  min-height: 200px;
+  white-space: pre-wrap;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: minmax(160px, 20%) 1fr;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+.table-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(160px, 20%) 1fr;
+  gap: 8px;
+}
+
+.hex-input {
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-height: 1.4;
+}
+
+.numbers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.numbers-grid input {
+  font-family: var(--vscode-editor-font-family, Consolas, monospace);
+}
+
+.table-footer {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+button {
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-border);
+}
+
+.error {
+  color: var(--vscode-editorError-foreground);
+  font-size: 12px;
+  min-height: 16px;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

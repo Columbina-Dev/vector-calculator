@@ -233,7 +233,7 @@ function renderChannels(): void {
 
     const number = document.createElement("input");
     number.type = "text";
-    number.inputMode = "numeric";
+    number.inputMode = "decimal";
     number.value = channel.weight.toString();
 
     const remove = document.createElement("button");
@@ -258,12 +258,12 @@ function renderChannels(): void {
     });
 
     number.addEventListener("input", () => {
-      const parsed = parseInteger(number.value);
+      const parsed = parseDecimal(number.value);
       if (parsed === null) {
         return;
       }
       const weight = clampNumber(parsed, -100, 100, 0);
-      slider.value = weight.toString();
+      slider.value = Math.round(weight).toString();
       number.value = weight.toString();
       updateChannelWeightLocal(channel.id, weight);
     });
@@ -478,6 +478,21 @@ function parseInteger(value: string): number | null {
     return null;
   }
   if (!/^-?\d+$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  return parsed;
+}
+
+function parseDecimal(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
     return null;
   }
   const parsed = Number(trimmed);
