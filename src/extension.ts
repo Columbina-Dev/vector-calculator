@@ -13,6 +13,7 @@ import {
 import { VBConfigLoader } from "./config/loader";
 import { hexToVec32, l2Magnitude, setMagnitude, vec32ToHex } from "./mixer/math";
 import { MixerSessionStore } from "./mixer/session";
+import { encryptJsonToNofs } from "./nofs/binary";
 import {
   ALLOWED_BASE_MODEL,
   ALLOWED_F0_MODEL,
@@ -24,6 +25,7 @@ import {
   normalizeNofsConfig,
   validateNofsData
 } from "./nofs/validate";
+import { NofsJsonFileSystemProvider, toVirtualUri } from "./nofs/virtualFs";
 import {
   ExtensionToMixerMessage,
   ExtensionToModelsMessage,
@@ -61,6 +63,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const loader = new VBConfigLoader();
   const sessionStore = new MixerSessionStore(context.globalState);
   const nofsDiagnostics = vscode.languages.createDiagnosticCollection("vectorCalculatorNofs");
+  const nofsJsonProvider = new NofsJsonFileSystemProvider();
 
   const mixerProvider = new MixerViewProvider(context);
   const modelsProvider = new ModelsViewProvider(context);
@@ -72,6 +75,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const nofsLanguageByUri = new Map<string, string>();
   const nofsAutofixTimers = new Map<string, NodeJS.Timeout>();
   const nofsAutofixInProgress = new Set<string>();
+  const nofsAutoOpen = new Set<string>();
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider("vectorCalculator.mixerView", mixerProvider, {
@@ -81,6 +85,11 @@ export function activate(context: vscode.ExtensionContext): void {
       webviewOptions: { retainContextWhenHidden: true }
     }),
     vscode.workspace.registerTextDocumentContentProvider(READONLY_SCHEME, readonlyProvider)
+  );
+  context.subscriptions.push(
+    vscode.workspace.registerFileSystemProvider("nofsjson", nofsJsonProvider, {
+      isCaseSensitive: true
+    })
   );
 
   let modelDataPath = resolveModelDataPath(context);
@@ -169,6 +178,39 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand("vectorCalculator.openKeyboardShortcuts", async () => {
       await vscode.commands.executeCommand("workbench.action.openGlobalKeybindings");
+    }),
+    vscode.commands.registerCommand(
+      "vectorCalculator.convertNofsAndEditJson",
+      async (uri?: vscode.Uri) => {
+        const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+        if (!targetUri) {
+          vscode.window.showInformationMessage("No file selected.");
+          return;
+        }
+        if (!targetUri.fsPath.toLowerCase().endsWith(".nofs")) {
+          vscode.window.showErrorMessage("Select a .nofs file to edit.");
+          return;
+        }
+        await openVirtualNofsEditor(targetUri);
+      }
+    ),
+    vscode.commands.registerCommand("vectorCalculator.saveActiveAsNofs", async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showInformationMessage("No active editor.");
+        return;
+      }
+      const doc = editor.document;
+      if (!doc.fileName.toLowerCase().endsWith(".nofs.json")) {
+        vscode.window.showErrorMessage("Active file is not a .nofs.json.");
+        return;
+      }
+      const jsonText = doc.getText();
+      const outputPath = doc.fileName.replace(/\.nofs\.json$/i, ".nofs");
+      const outputUri = vscode.Uri.file(outputPath);
+      const encrypted = encryptJsonToNofs(jsonText);
+      await vscode.workspace.fs.writeFile(outputUri, encrypted);
+      vscode.window.showInformationMessage(`Saved ${outputPath}`);
     })
   );
   mixerProvider.onMessage(async (message) => {
@@ -267,6 +309,7 @@ export function activate(context: vscode.ExtensionContext): void {
       validateDocument(doc, nofsDiagnostics);
       trackNofsLanguage(doc, nofsLanguageByUri);
       updateEditorStatus();
+      void maybeAutoOpenNofs(doc, nofsAutoOpen);
     }),
     vscode.workspace.onDidChangeTextDocument((event) => {
       validateDocument(event.document, nofsDiagnostics);
@@ -1007,6 +1050,69 @@ async function revealView(
   await tryExecuteCommand("workbench.action.openView", viewId);
   await tryExecuteCommand("workbench.action.focusView", viewId);
   await provider.reveal();
+}
+
+async function maybeAutoOpenNofs(
+  document: vscode.TextDocument,
+  guard: Set<string>
+): Promise<void> {
+  if (document.uri.scheme !== "file") {
+    return;
+  }
+  if (!document.fileName.toLowerCase().endsWith(".nofs")) {
+    return;
+  }
+  const key = document.uri.toString();
+  if (guard.has(key)) {
+    return;
+  }
+  guard.add(key);
+  try {
+    const active = vscode.window.activeTextEditor;
+    const column =
+      active && active.document.uri.toString() === key ? active.viewColumn : undefined;
+    await openVirtualNofsEditor(document.uri, column);
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      `Failed to open NOFS editor: ${(error as Error).message}`
+    );
+  } finally {
+    setTimeout(() => guard.delete(key), 500);
+  }
+}
+
+async function openVirtualNofsEditor(
+  originalUri: vscode.Uri,
+  viewColumn?: vscode.ViewColumn
+): Promise<void> {
+  const virtualUri = toVirtualUri(originalUri);
+  const doc = await vscode.workspace.openTextDocument(virtualUri);
+  await vscode.window.showTextDocument(doc, {
+    preview: false,
+    viewColumn: viewColumn ?? vscode.ViewColumn.Active
+  });
+  await vscode.languages.setTextDocumentLanguage(doc, "json");
+  await tryExecuteCommand("editor.action.formatDocument");
+  await closeTabByUri(originalUri);
+}
+
+async function closeTabByUri(targetUri: vscode.Uri): Promise<void> {
+  const target = targetUri.toString();
+  for (const group of vscode.window.tabGroups.all) {
+    for (const tab of group.tabs) {
+      const input = tab.input;
+      if (input instanceof vscode.TabInputText && input.uri.toString() === target) {
+        await vscode.window.tabGroups.close(tab, true);
+        return;
+      }
+      if (input instanceof vscode.TabInputTextDiff) {
+        if (input.original.toString() === target || input.modified.toString() === target) {
+          await vscode.window.tabGroups.close(tab, true);
+          return;
+        }
+      }
+    }
+  }
 }
 
 function parseSignedNumber(input: string): number | null {

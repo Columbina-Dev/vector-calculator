@@ -2,6 +2,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { parse, ParseError } from "jsonc-parser";
+import { decryptNofsToJson } from "../nofs/binary";
 import { VBConfig, VBConfigEntry } from "../shared/protocol";
 
 export interface LoadResult {
@@ -35,7 +36,7 @@ export class VBConfigLoader {
         const stat = await fs.promises.stat(configPath);
         if (stat.isDirectory()) {
           await scanDir(configPath, jsonFiles);
-        } else if (stat.isFile() && configPath.toLowerCase().endsWith(".nofs.json")) {
+        } else if (stat.isFile() && isConfigFile(configPath)) {
           jsonFiles.push(configPath);
         }
       } catch (error) {
@@ -46,7 +47,7 @@ export class VBConfigLoader {
     const entries: VBConfigEntry[] = [];
     for (const filePath of jsonFiles) {
       try {
-        const raw = await fs.promises.readFile(filePath, "utf8");
+        const raw = await readConfigFile(filePath);
         const parseErrors: ParseError[] = [];
         const data = parse(raw, parseErrors, { allowTrailingComma: true }) as VBConfig;
         if (parseErrors.length > 0 || !data) {
@@ -77,7 +78,7 @@ async function scanDir(root: string, results: string[]): Promise<void> {
     const fullPath = path.join(root, entry.name);
     if (entry.isDirectory()) {
       await scanDir(fullPath, results);
-    } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".nofs.json")) {
+    } else if (entry.isFile() && isConfigFile(entry.name)) {
       results.push(fullPath);
     }
   }
@@ -85,4 +86,22 @@ async function scanDir(root: string, results: string[]): Promise<void> {
 
 function hashId(value: string): string {
   return crypto.createHash("sha1").update(value).digest("hex");
+}
+
+function isConfigFile(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return lower.endsWith(".nofs") || lower.endsWith(".nofs.json") || lower.endsWith(".json");
+}
+
+function isNofsFile(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return lower.endsWith(".nofs") && !lower.endsWith(".nofs.json");
+}
+
+async function readConfigFile(filePath: string): Promise<string> {
+  if (isNofsFile(filePath)) {
+    const bytes = await fs.promises.readFile(filePath);
+    return decryptNofsToJson(Buffer.from(bytes));
+  }
+  return fs.promises.readFile(filePath, "utf8");
 }

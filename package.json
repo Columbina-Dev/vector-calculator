@@ -2,7 +2,8 @@
   "name": "vector-calculator",
   "displayName": "Vector Calculator",
   "description": "Just a useless calculator",
-  "version": "0.1.2",
+  "repository": "https://github.com/Columbina-Dev/vector-calculator",
+  "version": "0.1.3",
   "publisher": "Aosumi-Rena",
   "license": "GPL-3.0-only",
   "engines": {
@@ -22,7 +23,9 @@
     "onCommand:vectorCalculator.setStyleHexMagnitudeFromCursor",
     "onCommand:vectorCalculator.validateNofs",
     "onCommand:vectorCalculator.openModelDataFolder",
-    "onCommand:vectorCalculator.openKeyboardShortcuts"
+    "onCommand:vectorCalculator.openKeyboardShortcuts",
+    "onCommand:vectorCalculator.convertNofsAndEditJson",
+    "onCommand:vectorCalculator.saveActiveAsNofs"
   ],
   "contributes": {
     "viewsContainers": {
@@ -82,6 +85,14 @@
       {
         "command": "vectorCalculator.openKeyboardShortcuts",
         "title": "Vector: Open Keyboard Shortcuts"
+      },
+      {
+        "command": "vectorCalculator.convertNofsAndEditJson",
+        "title": "Vector: Convert and Edit NOFS"
+      },
+      {
+        "command": "vectorCalculator.saveActiveAsNofs",
+        "title": "Vector: Save Active JSON as NOFS"
       }
     ],
     "keybindings": [
@@ -93,6 +104,11 @@
       {
         "command": "vectorCalculator.setStyleHexMagnitudeFromCursor",
         "key": "ctrl+alt+m",
+        "when": "editorTextFocus && !findWidgetVisible && !searchViewletVisible"
+      },
+      {
+        "command": "vectorCalculator.saveActiveAsNofs",
+        "key": "ctrl+alt+s",
         "when": "editorTextFocus && !findWidgetVisible && !searchViewletVisible"
       }
     ],
@@ -106,6 +122,15 @@
           "scope": "application"
         }
       }
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "vectorCalculator.convertNofsAndEditJson",
+          "when": "resourceExtname == .nofs",
+          "group": "navigation"
+        }
+      ]
     }
   },
   "scripts": {
