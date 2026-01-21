@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { parse, ParseError } from "jsonc-parser";
 import { decryptNofsToJson } from "../nofs/binary";
+import { prepareNofsJsonText } from "../nofs/text";
 import { VBConfig, VBConfigEntry } from "../shared/protocol";
 
 export interface LoadResult {
@@ -90,7 +91,11 @@ function hashId(value: string): string {
 
 function isConfigFile(filePath: string): boolean {
   const lower = filePath.toLowerCase();
-  return lower.endsWith(".nofs") || lower.endsWith(".nofs.json") || lower.endsWith(".json");
+  return (
+    lower.endsWith(".nofs") ||
+    lower.endsWith(".nofs.json") ||
+    lower.endsWith(".nofs.jsonc")
+  );
 }
 
 function isNofsFile(filePath: string): boolean {
@@ -103,5 +108,9 @@ async function readConfigFile(filePath: string): Promise<string> {
     const bytes = await fs.promises.readFile(filePath);
     return decryptNofsToJson(Buffer.from(bytes));
   }
-  return fs.promises.readFile(filePath, "utf8");
+  const raw = await fs.promises.readFile(filePath, "utf8");
+  if (filePath.toLowerCase().endsWith(".nofs.jsonc")) {
+    return prepareNofsJsonText(raw);
+  }
+  return raw;
 }

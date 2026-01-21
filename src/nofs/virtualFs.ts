@@ -1,6 +1,14 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { decryptNofsToJson, encryptJsonToNofs } from "./binary";
+import { maybeBackupNofsFile } from "./backup";
+import {
+  canonicalizeJsonText,
+  formatJsoncText,
+  parseNofsMeta,
+  prepareNofsJsonText
+} from "./text";
 
 export class NofsJsonFileSystemProvider implements vscode.FileSystemProvider {
   private readonly emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
@@ -25,9 +33,28 @@ export class NofsJsonFileSystemProvider implements vscode.FileSystemProvider {
   async readFile(uri: vscode.Uri): Promise<Uint8Array> {
     const original = this.decodeOriginalUri(uri);
     try {
+      const settings = getNofsSettings();
       const data = await vscode.workspace.fs.readFile(original);
       const jsonText = decryptNofsToJson(Buffer.from(data));
-      return Buffer.from(jsonText, "utf8");
+      const formatted = settings.useJsoncEditing ? formatJsoncText(jsonText) : jsonText;
+      if (settings.useJsoncEditing) {
+        const jsoncPath = `${original.fsPath}.jsonc`;
+        if (fsExists(jsoncPath)) {
+          const jsoncData = await vscode.workspace.fs.readFile(vscode.Uri.file(jsoncPath));
+          const jsoncText = Buffer.from(jsoncData).toString("utf8");
+          const jsoncClean = prepareNofsJsonText(jsoncText);
+          const jsoncCanonical = canonicalizeJsonText(jsoncClean);
+          const nofsCanonical = canonicalizeJsonText(jsonText);
+          if (jsoncCanonical && nofsCanonical && jsoncCanonical === nofsCanonical) {
+            const formattedJsonc = formatJsoncText(jsoncText);
+            return Buffer.from(formattedJsonc, "utf8");
+          }
+          vscode.window.showWarningMessage(
+            "Companion .nofs.jsonc is out of sync with the .nofs file; showing decrypted data."
+          );
+        }
+      }
+      return Buffer.from(formatted, "utf8");
     } catch (error) {
       const message = (error as Error).message || "Unknown error.";
       vscode.window.showErrorMessage(`Failed to decrypt NOFS file: ${message}`);
@@ -42,9 +69,23 @@ export class NofsJsonFileSystemProvider implements vscode.FileSystemProvider {
   ): Promise<void> {
     const original = this.decodeOriginalUri(uri);
     try {
-      const jsonText = Buffer.from(content).toString("utf8");
-      const encrypted = encryptJsonToNofs(jsonText);
-      await vscode.workspace.fs.writeFile(original, encrypted);
+      const rawText = Buffer.from(content).toString("utf8");
+      const cleaned = prepareNofsJsonText(rawText);
+      const encrypted = encryptJsonToNofs(cleaned);
+      const settings = getNofsSettings();
+      const meta = parseNofsMeta(rawText);
+      const target = await resolveSaveTarget(original, meta, settings);
+      await maybeBackupNofsFile(target.fsPath, meta, {
+        enabled: settings.backupEnabled,
+        maxCount: settings.backupMax,
+        dir: settings.backupDir
+      });
+      await vscode.workspace.fs.writeFile(target, encrypted);
+      if (settings.useJsoncEditing) {
+        const jsoncPath = vscode.Uri.file(`${target.fsPath}.jsonc`);
+        const formatted = formatJsoncText(rawText);
+        await vscode.workspace.fs.writeFile(jsoncPath, Buffer.from(formatted, "utf8"));
+      }
     } catch (error) {
       const message = (error as Error).message || "Unknown error.";
       vscode.window.showErrorMessage(`Failed to encrypt NOFS file: ${message}`);
@@ -83,12 +124,15 @@ export class NofsJsonFileSystemProvider implements vscode.FileSystemProvider {
   }
 }
 
-export function toVirtualUri(originalNofsUri: vscode.Uri): vscode.Uri {
+export function toVirtualUri(
+  originalNofsUri: vscode.Uri,
+  displayExt: "json" | "jsonc" = "json"
+): vscode.Uri {
   const baseName = path.basename(originalNofsUri.fsPath);
   const encoded = encodeBase64Url(originalNofsUri.fsPath);
   return vscode.Uri.from({
     scheme: "nofsjson",
-    path: `/${baseName}.json`,
+    path: `/${baseName}.${displayExt}`,
     query: `orig=${encoded}`
   });
 }
@@ -108,4 +152,54 @@ export function decodeBase64Url(value: string): string {
     base64 += "=".repeat(4 - padding);
   }
   return Buffer.from(base64, "base64").toString("utf8");
+}
+
+function getNofsSettings(): {
+  useJsoncEditing: boolean;
+  saveToProjectRoot: boolean;
+  backupEnabled: boolean;
+  backupMax: number;
+  backupDir: string;
+} {
+  const config = vscode.workspace.getConfiguration("vectorCalculator");
+  return {
+    useJsoncEditing: config.get<boolean>("useJsoncNofsEditing", false),
+    saveToProjectRoot: config.get<boolean>("saveNofsToProjectRoot", false),
+    backupEnabled: config.get<boolean>("backupNofsEnabled", false),
+    backupMax: config.get<number>("backupNofsMax", 5),
+    backupDir: config.get<string>("backupNofsDir", "") || ""
+  };
+}
+
+function fsExists(filePath: string): boolean {
+  try {
+    return fs.existsSync(filePath);
+  } catch {
+    return false;
+  }
+}
+
+async function resolveSaveTarget(
+  original: vscode.Uri,
+  meta: { name?: string; version?: string },
+  settings: { saveToProjectRoot: boolean }
+): Promise<vscode.Uri> {
+  if (!settings.saveToProjectRoot) {
+    return original;
+  }
+  if (!meta.name || !meta.version) {
+    throw new Error("Missing name or version for project-root saving.");
+  }
+  const root = resolveWorkspaceRootFromUri(original);
+  if (!root) {
+    throw new Error("Open a workspace folder to use project root saving.");
+  }
+  const targetDir = path.join(root, meta.name);
+  await fs.promises.mkdir(targetDir, { recursive: true });
+  return vscode.Uri.file(path.join(targetDir, `voice.${meta.version}.nofs`));
+}
+
+function resolveWorkspaceRootFromUri(uri: vscode.Uri): string | undefined {
+  const folder = vscode.workspace.getWorkspaceFolder(uri) ?? vscode.workspace.workspaceFolders?.[0];
+  return folder?.uri.fsPath;
 }

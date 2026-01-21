@@ -14,6 +14,8 @@ import { VBConfigLoader } from "./config/loader";
 import { hexToVec32, l2Magnitude, setMagnitude, vec32ToHex } from "./mixer/math";
 import { MixerSessionStore } from "./mixer/session";
 import { encryptJsonToNofs } from "./nofs/binary";
+import { maybeBackupNofsFile } from "./nofs/backup";
+import { formatJsoncText, parseNofsMeta, prepareNofsJsonText } from "./nofs/text";
 import {
   ALLOWED_BASE_MODEL,
   ALLOWED_F0_MODEL,
@@ -76,6 +78,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const nofsAutofixTimers = new Map<string, NodeJS.Timeout>();
   const nofsAutofixInProgress = new Set<string>();
   const nofsAutoOpen = new Set<string>();
+  const nofsJsoncLanguage = new Set<string>();
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider("vectorCalculator.mixerView", mixerProvider, {
@@ -93,7 +96,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   let modelDataPath = resolveModelDataPath(context);
-  let watcher: vscode.FileSystemWatcher | undefined;
+  let watcher: vscode.Disposable | undefined;
   let reloadTimer: NodeJS.Timeout | undefined;
 
   const scheduleReload = () => {
@@ -201,15 +204,43 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       const doc = editor.document;
-      if (!doc.fileName.toLowerCase().endsWith(".nofs.json")) {
-        vscode.window.showErrorMessage("Active file is not a .nofs.json.");
+      const lower = doc.fileName.toLowerCase();
+      if (!lower.endsWith(".nofs.json") && !lower.endsWith(".nofs.jsonc")) {
+        vscode.window.showErrorMessage("Active file is not a .nofs.json or .nofs.jsonc.");
         return;
       }
-      const jsonText = doc.getText();
-      const outputPath = doc.fileName.replace(/\.nofs\.json$/i, ".nofs");
+      const rawText = doc.getText();
+      const cleanedText = prepareNofsJsonText(rawText);
+      const meta = parseNofsMeta(rawText);
+      const settings = getNofsSettings();
+      let outputPath = doc.fileName.replace(/\.nofs\.(json|jsonc)$/i, ".nofs");
+      if (settings.saveToProjectRoot) {
+        if (!meta.name || !meta.version) {
+          vscode.window.showErrorMessage("Missing name or version in JSON.");
+          return;
+        }
+        const root = resolveWorkspaceRoot(doc.uri);
+        if (!root) {
+          vscode.window.showErrorMessage("Open a workspace folder to use project root saving.");
+          return;
+        }
+        const targetDir = path.join(root, meta.name);
+        await fs.promises.mkdir(targetDir, { recursive: true });
+        outputPath = path.join(targetDir, `voice.${meta.version}.nofs`);
+      }
+      await maybeBackupNofsFile(outputPath, meta, {
+        enabled: settings.backupEnabled,
+        maxCount: settings.backupMax,
+        dir: settings.backupDir
+      });
       const outputUri = vscode.Uri.file(outputPath);
-      const encrypted = encryptJsonToNofs(jsonText);
+      const encrypted = encryptJsonToNofs(cleanedText);
       await vscode.workspace.fs.writeFile(outputUri, encrypted);
+      if (settings.useJsoncEditing) {
+        const jsoncUri = vscode.Uri.file(`${outputPath}.jsonc`);
+        const formatted = formatJsoncText(rawText);
+        await vscode.workspace.fs.writeFile(jsoncUri, Buffer.from(formatted, "utf8"));
+      }
       vscode.window.showInformationMessage(`Saved ${outputPath}`);
     })
   );
@@ -310,6 +341,7 @@ export function activate(context: vscode.ExtensionContext): void {
       trackNofsLanguage(doc, nofsLanguageByUri);
       updateEditorStatus();
       void maybeAutoOpenNofs(doc, nofsAutoOpen);
+      void maybeSetNofsJsoncLanguage(doc, nofsJsoncLanguage);
     }),
     vscode.workspace.onDidChangeTextDocument((event) => {
       validateDocument(event.document, nofsDiagnostics);
@@ -339,6 +371,7 @@ export function activate(context: vscode.ExtensionContext): void {
   for (const doc of vscode.workspace.textDocuments) {
     validateDocument(doc, nofsDiagnostics);
     trackNofsLanguage(doc, nofsLanguageByUri);
+    void maybeSetNofsJsoncLanguage(doc, nofsJsoncLanguage);
   }
 
   updateEditorStatus();
@@ -1081,17 +1114,39 @@ async function maybeAutoOpenNofs(
   }
 }
 
+async function maybeSetNofsJsoncLanguage(
+  document: vscode.TextDocument,
+  guard: Set<string>
+): Promise<void> {
+  if (!document.fileName.toLowerCase().endsWith(".nofs.jsonc")) {
+    return;
+  }
+  const key = document.uri.toString();
+  if (guard.has(key)) {
+    return;
+  }
+  guard.add(key);
+  try {
+    await vscode.languages.setTextDocumentLanguage(document, "jsonc");
+    await tryExecuteCommand("editor.action.formatDocument");
+  } finally {
+    setTimeout(() => guard.delete(key), 250);
+  }
+}
+
 async function openVirtualNofsEditor(
   originalUri: vscode.Uri,
   viewColumn?: vscode.ViewColumn
 ): Promise<void> {
-  const virtualUri = toVirtualUri(originalUri);
+  const settings = getNofsSettings();
+  const displayExt = settings.useJsoncEditing ? "jsonc" : "json";
+  const virtualUri = toVirtualUri(originalUri, displayExt);
   const doc = await vscode.workspace.openTextDocument(virtualUri);
   await vscode.window.showTextDocument(doc, {
     preview: false,
     viewColumn: viewColumn ?? vscode.ViewColumn.Active
   });
-  await vscode.languages.setTextDocumentLanguage(doc, "json");
+  await vscode.languages.setTextDocumentLanguage(doc, settings.useJsoncEditing ? "jsonc" : "json");
   await tryExecuteCommand("editor.action.formatDocument");
   await closeTabByUri(originalUri);
 }
@@ -1127,6 +1182,28 @@ function parseSignedNumber(input: string): number | null {
     return -0;
   }
   return value;
+}
+
+function getNofsSettings(): {
+  saveToProjectRoot: boolean;
+  backupEnabled: boolean;
+  backupMax: number;
+  backupDir: string;
+  useJsoncEditing: boolean;
+} {
+  const config = vscode.workspace.getConfiguration("vectorCalculator");
+  return {
+    saveToProjectRoot: config.get<boolean>("saveNofsToProjectRoot", false),
+    backupEnabled: config.get<boolean>("backupNofsEnabled", false),
+    backupMax: config.get<number>("backupNofsMax", 5),
+    backupDir: config.get<string>("backupNofsDir", "") || "",
+    useJsoncEditing: config.get<boolean>("useJsoncNofsEditing", false)
+  };
+}
+
+function resolveWorkspaceRoot(uri: vscode.Uri): string | undefined {
+  const folder = vscode.workspace.getWorkspaceFolder(uri) ?? vscode.workspace.workspaceFolders?.[0];
+  return folder?.uri.fsPath;
 }
 
 function resolveModelDataPath(context: vscode.ExtensionContext): string {
@@ -1167,13 +1244,21 @@ async function ensureModelDataDirs(modelDataPath: string): Promise<ModelDataDirs
 function createModelDataWatcher(
   modelDataPath: string,
   onChange: () => void
-): vscode.FileSystemWatcher {
-  const pattern = new vscode.RelativePattern(modelDataPath, "**/*.nofs.json");
-  const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-  watcher.onDidChange(onChange);
-  watcher.onDidCreate(onChange);
-  watcher.onDidDelete(onChange);
-  return watcher;
+): vscode.Disposable {
+  const patterns = ["**/*.nofs", "**/*.nofs.json", "**/*.nofs.jsonc"];
+  const watchers = patterns.map((pattern) =>
+    vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(modelDataPath, pattern))
+  );
+  for (const watcher of watchers) {
+    watcher.onDidChange(onChange);
+    watcher.onDidCreate(onChange);
+    watcher.onDidDelete(onChange);
+  }
+  return new vscode.Disposable(() => {
+    for (const watcher of watchers) {
+      watcher.dispose();
+    }
+  });
 }
 
 function getActiveNofsStatus(

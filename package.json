@@ -3,7 +3,7 @@
   "displayName": "Vector Calculator",
   "description": "Just a useless calculator",
   "repository": "https://github.com/Columbina-Dev/vector-calculator",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "Aosumi-Rena",
   "license": "GPL-3.0-only",
   "engines": {
@@ -119,6 +119,38 @@
           "type": "string",
           "description": "Global folder to scan recursively for model JSON (.nofs.json) files.",
           "default": "${userHome}/vector-calculator/model-data",
+          "scope": "application"
+        },
+        "vectorCalculator.saveNofsToProjectRoot": {
+          "type": "boolean",
+          "description": "Save NOFS files to <ProjectRoot>/<name>/voice.<version>.nofs when using Ctrl+Alt+S.",
+          "default": false,
+          "scope": "application"
+        },
+        "vectorCalculator.backupNofsEnabled": {
+          "type": "boolean",
+          "description": "Enable backup copies when writing NOFS files.",
+          "default": false,
+          "scope": "application"
+        },
+        "vectorCalculator.backupNofsMax": {
+          "type": "number",
+          "description": "Maximum number of backups to keep (1-10).",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 10,
+          "scope": "application"
+        },
+        "vectorCalculator.backupNofsDir": {
+          "type": "string",
+          "description": "Directory to store NOFS backups.",
+          "default": "${userHome}/vector-calculator/backup/",
+          "scope": "application"
+        },
+        "vectorCalculator.useJsoncNofsEditing": {
+          "type": "boolean",
+          "description": "Use comment-friendly editing and show the virtual editor as .nofs.jsonc, while saving a .nofs.jsonc companion file.",
+          "default": false,
           "scope": "application"
         }
       }
