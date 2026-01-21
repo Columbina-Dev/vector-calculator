@@ -13,7 +13,7 @@ npx vsce package
 
 ## Install VSIX
 ```bash
-code --install-extension vector-calculator-0.1.3.vsix
+code --install-extension <path/to/vsix>
 ```
 
 ## Usage
