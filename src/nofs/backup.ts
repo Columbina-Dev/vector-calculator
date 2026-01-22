@@ -1,5 +1,7 @@
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import { NofsMeta } from "./text";
 
 export interface BackupOptions {
@@ -19,17 +21,17 @@ export async function maybeBackupNofsFile(
   if (!meta.name || !meta.version) {
     return;
   }
-  if (!fs.existsSync(targetPath)) {
-    return;
-  }
 
   const safeName = sanitizeBackupName(meta.name);
   const version = sanitizeBackupName(meta.version);
   const timestamp = formatTimestamp(new Date());
-  const dir = options.dir;
+  const dir = resolveBackupDir(options.dir);
   const maxCount = clamp(options.maxCount, 1, 10);
 
   await fs.promises.mkdir(dir, { recursive: true });
+  if (!fs.existsSync(targetPath)) {
+    return;
+  }
   const backupName = `${safeName}-${version}-${timestamp}.nofs`;
   const backupPath = path.join(dir, backupName);
   await fs.promises.copyFile(targetPath, backupPath);
@@ -70,6 +72,25 @@ async function pruneBackups(
 
 function sanitizeBackupName(value: string): string {
   return value.replace(/\s+/g, "_").replace(/[<>:"/\\|?*]/g, "_").trim() || "item";
+}
+
+function resolveBackupDir(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return path.join(os.homedir(), "vector-calculator", "backup");
+  }
+  if (trimmed.toLowerCase().startsWith("file:")) {
+    try {
+      return path.resolve(fileURLToPath(trimmed));
+    } catch {
+      return path.join(os.homedir(), "vector-calculator", "backup");
+    }
+  }
+  let expanded = trimmed.replace(/\$\{userHome\}/gi, os.homedir());
+  if (expanded.startsWith("~")) {
+    expanded = path.join(os.homedir(), expanded.slice(1));
+  }
+  return path.resolve(expanded);
 }
 
 function formatTimestamp(date: Date): string {

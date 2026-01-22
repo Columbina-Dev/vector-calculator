@@ -75,12 +75,12 @@ export class NofsJsonFileSystemProvider implements vscode.FileSystemProvider {
       const settings = getNofsSettings();
       const meta = parseNofsMeta(rawText);
       const target = await resolveSaveTarget(original, meta, settings);
+      await vscode.workspace.fs.writeFile(target, encrypted);
       await maybeBackupNofsFile(target.fsPath, meta, {
         enabled: settings.backupEnabled,
         maxCount: settings.backupMax,
         dir: settings.backupDir
       });
-      await vscode.workspace.fs.writeFile(target, encrypted);
       if (settings.useJsoncEditing) {
         const jsoncPath = vscode.Uri.file(`${target.fsPath}.jsonc`);
         const formatted = formatJsoncText(rawText);

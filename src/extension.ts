@@ -236,6 +236,11 @@ export function activate(context: vscode.ExtensionContext): void {
       const outputUri = vscode.Uri.file(outputPath);
       const encrypted = encryptJsonToNofs(cleanedText);
       await vscode.workspace.fs.writeFile(outputUri, encrypted);
+      await maybeBackupNofsFile(outputPath, meta, {
+        enabled: settings.backupEnabled,
+        maxCount: settings.backupMax,
+        dir: settings.backupDir
+      });
       if (settings.useJsoncEditing) {
         const jsoncUri = vscode.Uri.file(`${outputPath}.jsonc`);
         const formatted = formatJsoncText(rawText);

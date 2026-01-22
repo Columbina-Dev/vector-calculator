@@ -13,7 +13,7 @@ npx vsce package
 
 ## Install VSIX
 ```bash
-code --install-extension <path/to/vsix>
+code --install-extension PATH/TO/VSIX
 ```
 
 ## Usage
